@@ -133,9 +133,7 @@ def list_requests(
                 if filters_summary:
                     for part in filters_summary.split(", "):
                         err_console.print(f"  • {part}")
-                err_console.print(
-                    "\nTry broadening your filters or check ngrok at:"
-                )
+                err_console.print("\nTry broadening your filters or check ngrok at:")
                 err_console.print(f"{url}/inspect/http")
                 raise typer.Exit(1)
 
@@ -149,10 +147,10 @@ def list_requests(
 
     except NgrokConnectionError as e:
         err_console.print(str(e))
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
     except ValueError as e:
         err_console.print(f"Error: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 def tail_requests(
@@ -184,12 +182,12 @@ def tail_requests(
 
     except NgrokConnectionError as e:
         err_console.print(str(e))
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
     except KeyboardInterrupt:
         console.print("\nStopped watching.")
     except ValueError as e:
         err_console.print(f"Error: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 def get_request(
@@ -212,10 +210,10 @@ def get_request(
 
     except NgrokConnectionError as e:
         err_console.print(str(e))
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
     except ValueError as e:
         err_console.print(f"Error: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 def show_help(

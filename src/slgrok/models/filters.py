@@ -32,6 +32,8 @@ class TimeWindow(BaseModel):
                 return timedelta(minutes=self.value)
             case "h":
                 return timedelta(hours=self.value)
+            case _:
+                raise ValueError(f"Unknown unit: {self.unit}")
 
 
 class StatusCodeFilter(BaseModel):
@@ -67,10 +69,7 @@ class StatusCodeFilter(BaseModel):
 
         # Check range matches
         range_prefix = f"{status_code // 100}xx"
-        if range_prefix in self.ranges:
-            return True
-
-        return False
+        return range_prefix in self.ranges
 
     @classmethod
     def from_string(cls, value: str, errors_only: bool = False) -> "StatusCodeFilter":
@@ -88,7 +87,9 @@ class StatusCodeFilter(BaseModel):
                 return cls(exact=[code], errors_only=errors_only)
             raise ValueError(f"Status code must be between 100 and 599: {value}")
         except ValueError:
-            raise ValueError(f"Invalid status filter: {value}. Use a number (404) or range (4xx)")
+            raise ValueError(
+                f"Invalid status filter: {value}. Use a number (404) or range (4xx)"
+            ) from None
 
 
 class RequestFilters(BaseModel):

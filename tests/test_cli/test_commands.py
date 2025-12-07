@@ -73,9 +73,7 @@ class TestListCommand:
 
         mock_repo = mocker.patch("slgrok.cli.commands.NgrokRepository")
         mock_instance = mock_repo.return_value.__enter__.return_value
-        mock_instance.get_requests.side_effect = NgrokConnectionError(
-            "http://localhost:4040"
-        )
+        mock_instance.get_requests.side_effect = NgrokConnectionError("http://localhost:4040")
 
         result = runner.invoke(app, ["list"])
 

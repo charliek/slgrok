@@ -56,6 +56,7 @@ class TestInspectorService:
         result = service.get_requests(filters)
 
         assert len(result) == 1
+        assert result[0].response is not None
         assert result[0].response.status_code == 404
 
     def test_get_requests_filter_by_status_range(
@@ -72,6 +73,7 @@ class TestInspectorService:
         result = service.get_requests(filters)
 
         assert len(result) == 1
+        assert result[0].response is not None
         assert result[0].response.status_code == 404
 
     def test_get_requests_filter_errors_only(
@@ -89,6 +91,7 @@ class TestInspectorService:
 
         assert len(result) == 2
         for req in result:
+            assert req.response is not None
             assert req.response.status_code >= 400
 
     def test_get_requests_filter_by_path_glob(
@@ -177,6 +180,7 @@ class TestInspectorService:
 
         # Only the 404 on /api/v1/users/456 should match
         assert len(result) == 1
+        assert result[0].response is not None
         assert result[0].response.status_code == 404
 
 

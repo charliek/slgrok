@@ -17,7 +17,7 @@ def fixtures_dir() -> Path:
 @pytest.fixture
 def sample_requests_json(fixtures_dir: Path) -> dict:
     """Load sample requests JSON fixture."""
-    with open(fixtures_dir / "requests.json") as f:
+    with (fixtures_dir / "requests.json").open() as f:
         return json.load(f)
 
 
