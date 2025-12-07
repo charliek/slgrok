@@ -1,0 +1,86 @@
+{
+  "uri": "/api/requests/http",
+  "requests": [
+    {
+      "uri": "/api/requests/http/548fb5c700000001",
+      "id": "548fb5c700000001",
+      "tunnel_name": "command_line",
+      "remote_addr": "192.168.100.25",
+      "start": "2024-01-15T10:32:07-08:00",
+      "duration": 234000000,
+      "request": {
+        "method": "POST",
+        "proto": "HTTP/1.1",
+        "headers": {
+          "Content-Type": ["application/json"],
+          "Authorization": ["Bearer token123"],
+          "Host": ["example.ngrok.io"]
+        },
+        "uri": "/api/v1/devices",
+        "raw": "eyJkZXZpY2VJZCI6ICIxMjMifQ=="
+      },
+      "response": {
+        "status": "200 OK",
+        "status_code": 200,
+        "proto": "HTTP/1.1",
+        "headers": {
+          "Content-Type": ["application/json"]
+        },
+        "raw": "eyJzdWNjZXNzIjogdHJ1ZX0="
+      }
+    },
+    {
+      "uri": "/api/requests/http/548fb5c700000002",
+      "id": "548fb5c700000002",
+      "tunnel_name": "command_line",
+      "remote_addr": "192.168.100.26",
+      "start": "2024-01-15T10:33:07-08:00",
+      "duration": 500000000,
+      "request": {
+        "method": "GET",
+        "proto": "HTTP/1.1",
+        "headers": {
+          "Host": ["example.ngrok.io"]
+        },
+        "uri": "/api/v1/users/456",
+        "raw": ""
+      },
+      "response": {
+        "status": "404 Not Found",
+        "status_code": 404,
+        "proto": "HTTP/1.1",
+        "headers": {
+          "Content-Type": ["application/json"]
+        },
+        "raw": "eyJlcnJvciI6ICJVc2VyIG5vdCBmb3VuZCJ9"
+      }
+    },
+    {
+      "uri": "/api/requests/http/548fb5c700000003",
+      "id": "548fb5c700000003",
+      "tunnel_name": "my-api",
+      "remote_addr": "192.168.100.27",
+      "start": "2024-01-15T10:34:07-08:00",
+      "duration": 1500000000,
+      "request": {
+        "method": "POST",
+        "proto": "HTTP/1.1",
+        "headers": {
+          "Content-Type": ["application/json"],
+          "Host": ["api.ngrok.io"]
+        },
+        "uri": "/webhook/events",
+        "raw": "eyJldmVudCI6ICJ0ZXN0In0="
+      },
+      "response": {
+        "status": "500 Internal Server Error",
+        "status_code": 500,
+        "proto": "HTTP/1.1",
+        "headers": {
+          "Content-Type": ["application/json"]
+        },
+        "raw": "eyJlcnJvciI6ICJJbnRlcm5hbCBzZXJ2ZXIgZXJyb3IifQ=="
+      }
+    }
+  ]
+}
