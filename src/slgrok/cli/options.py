@@ -94,3 +94,11 @@ TruncateOption = Annotated[
         help="Truncate bodies to N characters",
     ),
 ]
+
+DebugOption = Annotated[
+    bool,
+    typer.Option(
+        "--debug",
+        help="Enable debug logging to stderr",
+    ),
+]

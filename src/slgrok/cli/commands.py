@@ -8,6 +8,7 @@ from rich.console import Console
 from slgrok.cli.help import get_help
 from slgrok.cli.options import (
     BaseUrlOption,
+    DebugOption,
     DomainOption,
     ErrorsOption,
     LimitOption,
@@ -20,6 +21,7 @@ from slgrok.cli.options import (
 )
 from slgrok.models.filters import RequestFilters, StatusCodeFilter, TimeWindow
 from slgrok.models.output import FormatOptions
+from slgrok.models.requests import CapturedRequest
 from slgrok.repositories.ngrok import NgrokConnectionError, NgrokRepository
 from slgrok.services.formatter import FormatterService
 from slgrok.services.inspector import InspectorService
@@ -70,11 +72,13 @@ def _build_filters(
 def _build_format_options(
     pretty: bool = False,
     truncate: int | None = None,
+    debug: bool = False,
 ) -> FormatOptions:
     """Build FormatOptions from CLI options."""
     return FormatOptions(
         pretty_print=pretty,
         truncate=truncate,
+        debug=debug,
     )
 
 
@@ -116,16 +120,24 @@ def list_requests(
     since: SinceOption = None,
     pretty: PrettyOption = False,
     truncate: TruncateOption = None,
+    debug: DebugOption = False,
 ) -> None:
     """List captured requests from ngrok inspector."""
     try:
         url = _get_base_url(base_url)
         filters = _build_filters(limit, status, errors, path, domain, tunnel, since)
-        format_options = _build_format_options(pretty, truncate)
+        format_options = _build_format_options(pretty, truncate, debug)
+
+        if debug:
+            err_console.print("[dim][DEBUG] Debug mode enabled[/dim]")
+            err_console.print(f"[dim][DEBUG] Fetching from {url}[/dim]")
 
         with NgrokRepository(url) as repo:
             service = InspectorService(repo)
             requests = service.get_requests(filters)
+
+            if debug:
+                err_console.print(f"[dim][DEBUG] Retrieved {len(requests)} requests[/dim]")
 
             if not requests:
                 filters_summary = _build_filters_summary(filters)
@@ -153,6 +165,33 @@ def list_requests(
         raise typer.Exit(1) from None
 
 
+def _log_request_debug(request: CapturedRequest) -> None:
+    """Log debug information about a captured request."""
+    req_id = request.id
+    method = request.request.method
+    uri = request.request.uri
+
+    # Check response state
+    if request.response is None:
+        err_console.print(f"[dim][DEBUG][/dim] {req_id} {method} {uri}: response is None")
+        return
+
+    # Check response.raw state
+    if request.response.raw is None:
+        err_console.print(f"[dim][DEBUG][/dim] {req_id} {method} {uri}: response.raw is None")
+    elif len(request.response.raw) == 0:
+        err_console.print(f"[dim][DEBUG][/dim] {req_id} {method} {uri}: response.raw is empty")
+    else:
+        # Log raw length and content-length header for comparison
+        raw_len = len(request.response.raw)
+        content_length = request.response.headers.root.get("Content-Length", [None])[0]
+        status = request.response.status_code
+        err_console.print(
+            f"[dim][DEBUG][/dim] {req_id} {method} {uri}: "
+            f"status={status}, raw_b64_len={raw_len}, content-length={content_length}"
+        )
+
+
 def tail_requests(
     base_url: BaseUrlOption = None,
     status: StatusOption = None,
@@ -162,20 +201,27 @@ def tail_requests(
     tunnel: TunnelOption = None,
     pretty: PrettyOption = False,
     truncate: TruncateOption = None,
+    debug: DebugOption = False,
 ) -> None:
     """Watch for new requests in real-time."""
     try:
         url = _get_base_url(base_url)
         filters = _build_filters(None, status, errors, path, domain, tunnel, None)
-        format_options = _build_format_options(pretty, truncate)
+        format_options = _build_format_options(pretty, truncate, debug)
 
         console.print("Watching for requests... (Ctrl+C to stop)\n")
+        if debug:
+            err_console.print("[dim][DEBUG] Debug mode enabled[/dim]")
+            err_console.print(f"[dim][DEBUG] Connecting to {url}[/dim]")
 
         with NgrokRepository(url) as repo:
             service = InspectorService(repo)
             formatter = FormatterService()
 
-            for request in service.tail_requests(filters):
+            for request in service.tail_requests(filters, debug=debug):
+                if debug:
+                    _log_request_debug(request)
+
                 label = f"{request.request.method} {request.request.uri}"
                 separator = formatter._build_separator(label)
                 output = formatter.format_request(request, format_options)
@@ -198,14 +244,22 @@ def get_request(
     base_url: BaseUrlOption = None,
     pretty: PrettyOption = False,
     truncate: TruncateOption = None,
+    debug: DebugOption = False,
 ) -> None:
     """Get details of a specific request by ID."""
     try:
         url = _get_base_url(base_url)
-        format_options = _build_format_options(pretty, truncate)
+        format_options = _build_format_options(pretty, truncate, debug)
+
+        if debug:
+            err_console.print("[dim][DEBUG] Debug mode enabled[/dim]")
+            err_console.print(f"[dim][DEBUG] Fetching {request_id} from {url}[/dim]")
 
         with NgrokRepository(url) as repo:
             request = repo.get_request(request_id)
+
+            if debug:
+                _log_request_debug(request)
 
             formatter = FormatterService()
             output = formatter.format_request(request, format_options)

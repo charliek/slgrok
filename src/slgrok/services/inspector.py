@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from urllib.parse import urlparse
 
 from slgrok.models.filters import RequestFilters
+from slgrok.models.output import debug_log
 from slgrok.models.requests import CapturedRequest
 from slgrok.repositories.ngrok import NgrokRepository
 
@@ -46,12 +47,14 @@ class InspectorService:
         self,
         filters: RequestFilters,
         poll_interval: float = 1.0,
+        debug: bool = False,
     ) -> Iterator[CapturedRequest]:
         """Watch for new requests in real-time.
 
         Args:
             filters: Filters to apply to requests
             poll_interval: Seconds between polls
+            debug: Whether to enable debug logging
 
         Yields:
             New captured requests as they arrive
@@ -63,15 +66,33 @@ class InspectorService:
         for req in initial:
             seen_ids.add(req.id)
 
+        if debug:
+            debug_log(f"tail: initialized with {len(seen_ids)} existing requests")
+
         while True:
             requests = self.repository.get_requests(tunnel_name=filters.tunnel_name)
 
             # Find new requests
             new_requests = [r for r in requests if r.id not in seen_ids]
 
+            if debug and new_requests:
+                debug_log(f"tail: found {len(new_requests)} new request(s) in poll")
+
             # Filter and yield new requests
-            for req in self._apply_filters(new_requests, filters):
+            filtered = self._apply_filters(new_requests, filters, debug)
+            for req in filtered:
                 seen_ids.add(req.id)
+                if debug:
+                    has_response = req.response is not None
+                    has_body = False
+                    body_len = 0
+                    if req.response is not None and req.response.raw is not None:
+                        has_body = True
+                        body_len = len(req.response.raw)
+                    debug_log(
+                        f"tail: yielding {req.id} - has_response={has_response}, "
+                        f"has_raw_body={has_body}, raw_len={body_len}"
+                    )
                 yield req
 
             time.sleep(poll_interval)
@@ -80,17 +101,20 @@ class InspectorService:
         self,
         requests: list[CapturedRequest],
         filters: RequestFilters,
+        debug: bool = False,
     ) -> list[CapturedRequest]:
         """Apply filters to a list of requests.
 
         Args:
             requests: List of requests to filter
             filters: Filters to apply
+            debug: Whether to enable debug logging
 
         Returns:
             Filtered list of requests
         """
         result = requests
+        initial_count = len(result)
 
         # Filter by status code
         if filters.status is not None:
@@ -99,19 +123,30 @@ class InspectorService:
                 for r in result
                 if r.response is not None and filters.status.matches(r.response.status_code)
             ]
+            if debug and len(result) != initial_count:
+                debug_log(f"filter: status filter reduced {initial_count} -> {len(result)}")
 
         # Filter by path pattern
         if filters.path_pattern is not None:
+            before = len(result)
             result = [r for r in result if self._matches_path(r.request.uri, filters.path_pattern)]
+            if debug and len(result) != before:
+                debug_log(f"filter: path filter reduced {before} -> {len(result)}")
 
         # Filter by domain
         if filters.domain is not None:
+            before = len(result)
             result = [r for r in result if self._matches_domain(r, filters.domain)]
+            if debug and len(result) != before:
+                debug_log(f"filter: domain filter reduced {before} -> {len(result)}")
 
         # Filter by time window
         if filters.time_window is not None:
+            before = len(result)
             cutoff = datetime.now(UTC) - filters.time_window.to_timedelta()
             result = [r for r in result if r.start >= cutoff]
+            if debug and len(result) != before:
+                debug_log(f"filter: time_window filter reduced {before} -> {len(result)}")
 
         return result
 

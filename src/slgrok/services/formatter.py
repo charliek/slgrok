@@ -5,7 +5,7 @@ import json
 import re
 from datetime import UTC, datetime
 
-from slgrok.models.output import FormatOptions
+from slgrok.models.output import FormatOptions, debug_log
 from slgrok.models.requests import CapturedRequest, HttpHeaders
 
 
@@ -45,8 +45,10 @@ class FormatterService:
             lines.append("")
 
         # Request body (extract just the body from raw HTTP message)
-        request_raw = self._decode_body(request.request.raw)
-        request_body = self._extract_http_body(request_raw) if request_raw else ""
+        request_raw = self._decode_body(request.request.raw, "request", options.debug)
+        request_body = (
+            self._extract_http_body(request_raw, "request", options.debug) if request_raw else ""
+        )
         if request_body:
             lines.append("[bold yellow]### Request Body[/bold yellow]")
             content_type = self._get_content_type(request.request.headers)
@@ -56,6 +58,8 @@ class FormatterService:
             lines.append(body_formatted)
             lines.append("```")
             lines.append("")
+        elif options.debug:
+            debug_log(f"request body: empty (raw_len={len(request.request.raw or '')})")
 
         # Response headers
         if request.response and options.show_headers:
@@ -65,8 +69,12 @@ class FormatterService:
 
         # Response body (extract just the body from raw HTTP message)
         if request.response:
-            response_raw = self._decode_body(request.response.raw)
-            response_body = self._extract_http_body(response_raw) if response_raw else ""
+            response_raw = self._decode_body(request.response.raw, "response", options.debug)
+            response_body = (
+                self._extract_http_body(response_raw, "response", options.debug)
+                if response_raw
+                else ""
+            )
             if response_body:
                 lines.append("[bold green]### Response Body[/bold green]")
                 content_type = self._get_content_type(request.response.headers)
@@ -76,6 +84,12 @@ class FormatterService:
                 lines.append(body_formatted)
                 lines.append("```")
                 lines.append("")
+            elif options.debug:
+                content_type = self._get_content_type(request.response.headers)
+                debug_log(
+                    f"response body: empty (raw_len={len(request.response.raw or '')}, "
+                    f"content_type={content_type})"
+                )
 
         return "\n".join(lines)
 
@@ -137,24 +151,33 @@ class FormatterService:
         right = remaining - left
         return f"[bold blue]{'*' * left}{label_with_spaces}{'*' * right}[/bold blue]"
 
-    def _decode_body(self, raw: str | None) -> str:
+    def _decode_body(self, raw: str | None, label: str = "", debug: bool = False) -> str:
         """Decode a base64-encoded body.
 
         Args:
             raw: Base64 encoded body, can be None
+            label: Label for debug logging (e.g., "request" or "response")
+            debug: Whether to enable debug logging
 
         Returns:
             Decoded body string (full HTTP message)
         """
         if not raw:
+            if debug:
+                debug_log(f"{label} decode: raw is None/empty")
             return ""
         try:
             decoded = base64.b64decode(raw)
-            return decoded.decode("utf-8", errors="replace")
-        except Exception:
+            result = decoded.decode("utf-8", errors="replace")
+            if debug:
+                debug_log(f"{label} decode: b64_len={len(raw)}, decoded_len={len(result)}")
+            return result
+        except Exception as e:
+            if debug:
+                debug_log(f"{label} decode: FAILED - {type(e).__name__}: {e}")
             return ""
 
-    def _extract_http_body(self, raw_message: str) -> str:
+    def _extract_http_body(self, raw_message: str, label: str = "", debug: bool = False) -> str:
         """Extract just the body from a raw HTTP message.
 
         The raw message includes HTTP headers. The body starts after
@@ -162,17 +185,29 @@ class FormatterService:
 
         Args:
             raw_message: Full HTTP message with headers
+            label: Label for debug logging (e.g., "request" or "response")
+            debug: Whether to enable debug logging
 
         Returns:
             Just the body portion, or empty string if not found
         """
         # Try \r\n\r\n first (standard HTTP)
         if "\r\n\r\n" in raw_message:
-            return raw_message.split("\r\n\r\n", 1)[1]
+            body = raw_message.split("\r\n\r\n", 1)[1]
+            if debug:
+                debug_log(f"{label} extract: found CRLF separator, body_len={len(body)}")
+            return body
         # Fall back to \n\n
         if "\n\n" in raw_message:
-            return raw_message.split("\n\n", 1)[1]
+            body = raw_message.split("\n\n", 1)[1]
+            if debug:
+                debug_log(f"{label} extract: found LF separator, body_len={len(body)}")
+            return body
         # No separator found, return as-is
+        if debug:
+            debug_log(
+                f"{label} extract: no separator found, returning raw (len={len(raw_message)})"
+            )
         return raw_message
 
     def _format_body(self, body: str, content_type: str, options: FormatOptions) -> str:
@@ -190,14 +225,23 @@ class FormatterService:
 
         if options.pretty_print:
             # Check if this looks like chunked transfer encoding
-            if self._is_chunked_body(body):
+            is_chunked = self._is_chunked_body(body)
+            if options.debug:
+                debug_log(
+                    f"format_body: len={len(body)}, content_type={content_type}, is_chunked={is_chunked}"
+                )
+            if is_chunked:
                 result = self._format_chunked_body(body, content_type)
+                if options.debug:
+                    debug_log(f"format_body: chunked formatting applied, result_len={len(result)}")
             elif "json" in content_type.lower():
                 # Pretty print JSON if requested
                 try:
                     parsed = json.loads(body)
                     result = json.dumps(parsed, indent=2)
-                except json.JSONDecodeError:
+                except json.JSONDecodeError as e:
+                    if options.debug:
+                        debug_log(f"format_body: JSON parse failed - {e}")
                     pass  # Keep original if not valid JSON
 
         # Truncate if requested
