@@ -15,15 +15,15 @@ class TestFormatterService:
         formatter = FormatterService()
         output = formatter.format_request(sample_request, FormatOptions())
 
-        # Check header
+        # Check header (with Rich markup)
         assert "## POST /api/v1/devices" in output
-        assert "**Status:** 200 OK" in output
-        assert "**Duration:**" in output
-        assert "**Timestamp:**" in output
-        assert "**Tunnel:** command_line" in output
-        assert "**Remote:** 192.168.100.25" in output
+        assert "Status:" in output and "200 OK" in output
+        assert "Duration:" in output
+        assert "Timestamp:" in output
+        assert "Tunnel:" in output and "command_line" in output
+        assert "Remote:" in output and "192.168.100.25" in output
 
-        # Check sections
+        # Check sections (with Rich markup)
         assert "### Request Headers" in output
         assert "### Request Body" in output
         assert "### Response Headers" in output
