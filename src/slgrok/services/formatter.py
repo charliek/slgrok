@@ -29,18 +29,18 @@ class FormatterService:
         path = request.request.uri
         status = request.response.status if request.response else "No Response"
 
-        lines.append(f"## {method} {path}")
-        lines.append(f"**ID:** `{request.id}`")
-        lines.append(f"**Status:** {status}")
-        lines.append(f"**Duration:** {self._format_duration(request.duration)}")
-        lines.append(f"**Timestamp:** {self._format_timestamp(request.start)}")
-        lines.append(f"**Tunnel:** {request.tunnel_name}")
-        lines.append(f"**Remote:** {request.remote_addr}")
+        lines.append(f"[bold cyan]## {method} {path}[/bold cyan]")
+        lines.append(f"[dim]ID:[/dim] {request.id}")
+        lines.append(f"[dim]Status:[/dim] {status}")
+        lines.append(f"[dim]Duration:[/dim] {self._format_duration(request.duration)}")
+        lines.append(f"[dim]Timestamp:[/dim] {self._format_timestamp(request.start)}")
+        lines.append(f"[dim]Tunnel:[/dim] {request.tunnel_name}")
+        lines.append(f"[dim]Remote:[/dim] {request.remote_addr}")
         lines.append("")
 
         # Request headers
         if options.show_headers:
-            lines.append("### Request Headers")
+            lines.append("[bold yellow]### Request Headers[/bold yellow]")
             lines.extend(self._format_headers(request.request.headers, options.headers_filter))
             lines.append("")
 
@@ -48,7 +48,7 @@ class FormatterService:
         request_raw = self._decode_body(request.request.raw)
         request_body = self._extract_http_body(request_raw) if request_raw else ""
         if request_body:
-            lines.append("### Request Body")
+            lines.append("[bold yellow]### Request Body[/bold yellow]")
             content_type = self._get_content_type(request.request.headers)
             body_formatted = self._format_body(request_body, content_type, options)
             lang = self._get_code_block_lang(content_type)
@@ -59,7 +59,7 @@ class FormatterService:
 
         # Response headers
         if request.response and options.show_headers:
-            lines.append("### Response Headers")
+            lines.append("[bold green]### Response Headers[/bold green]")
             lines.extend(self._format_headers(request.response.headers, options.headers_filter))
             lines.append("")
 
@@ -68,7 +68,7 @@ class FormatterService:
             response_raw = self._decode_body(request.response.raw)
             response_body = self._extract_http_body(response_raw) if response_raw else ""
             if response_body:
-                lines.append("### Response Body")
+                lines.append("[bold green]### Response Body[/bold green]")
                 content_type = self._get_content_type(request.response.headers)
                 body_formatted = self._format_body(response_body, content_type, options)
                 lang = self._get_code_block_lang(content_type)
@@ -100,7 +100,7 @@ class FormatterService:
         # Summary header
         count = len(requests)
         plural = "s" if count != 1 else ""
-        lines.append(f"# ngrok Inspector - {count} request{plural}")
+        lines.append(f"[bold magenta]# ngrok Inspector - {count} request{plural}[/bold magenta]")
         lines.append("")
 
         if filters_summary:
@@ -132,10 +132,10 @@ class FormatterService:
         label_with_spaces = f" {label} "
         remaining = width - len(label_with_spaces)
         if remaining < 2:
-            return f"* {label} *"
+            return f"[bold blue]* {label} *[/bold blue]"
         left = remaining // 2
         right = remaining - left
-        return f"{'*' * left}{label_with_spaces}{'*' * right}"
+        return f"[bold blue]{'*' * left}{label_with_spaces}{'*' * right}[/bold blue]"
 
     def _decode_body(self, raw: str | None) -> str:
         """Decode a base64-encoded body.
