@@ -176,8 +176,11 @@ def tail_requests(
             formatter = FormatterService()
 
             for request in service.tail_requests(filters):
+                label = f"{request.request.method} {request.request.uri}"
+                separator = formatter._build_separator(label)
                 output = formatter.format_request(request, format_options)
-                console.print("---")
+                console.print(separator)
+                console.print("")
                 console.print(output)
 
     except NgrokConnectionError as e:
